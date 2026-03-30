@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flippa Analytics Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Syne:wght@700;800;900&display=swap');
+
+:root {
+  --bg:#07070f;--surface:#0f0f1a;--card:#14141f;--border:#252538;
+  --a1:#f97316;--a2:#8b5cf6;--a3:#22d3ee;--a4:#34d399;--a5:#f43f5e;
+  --text:#eeeef8;--muted:#7777aa;--success:#34d399;--danger:#f43f5e;--warn:#fbbf24;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
+
+/* LOGIN */
+#login-screen{
+  position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;
+  background:var(--bg);
+  background-image:radial-gradient(ellipse at 15% 60%,rgba(139,92,246,.18) 0%,transparent 55%),
+    radial-gradient(ellipse at 85% 20%,rgba(249,115,22,.14) 0%,transparent 50%),
+    radial-gradient(ellipse at 50% 90%,rgba(34,211,238,.08) 0%,transparent 50%);
+}
+.login-wrap{
+  background:var(--card);border:1px solid var(--border);border-radius:24px;
+  padding:52px 44px;width:440px;box-shadow:0 50px 100px rgba(0,0,0,.7);
+  animation:rise .5s cubic-bezier(.22,1,.36,1);
+}
+@keyframes rise{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:none}}
+.login-icon{font-size:42px;margin-bottom:18px;}
+.login-brand{
+  font-family:'Syne',sans-serif;font-size:30px;font-weight:900;
+  background:linear-gradient(135deg,var(--a1),var(--a2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px;
+}
+.login-hint{color:var(--muted);font-size:14px;margin-bottom:38px;}
+.login-wrap label{display:block;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;}
+.login-wrap input{
+  width:100%;padding:14px 16px;background:var(--surface);border:1px solid var(--border);
+  border-radius:12px;color:var(--text);font-family:inherit;font-size:15px;
+  margin-bottom:18px;outline:none;transition:border-color .2s;
+}
+.login-wrap input:focus{border-color:var(--a2);}
+.login-btn{
+  width:100%;padding:15px;background:linear-gradient(135deg,var(--a1),var(--a2));
+  border:none;border-radius:12px;color:#fff;font-family:inherit;font-size:16px;font-weight:700;
+  cursor:pointer;transition:opacity .2s,transform .1s;margin-top:4px;
+}
+.login-btn:hover{opacity:.88;transform:translateY(-1px);}
+.login-err{color:var(--danger);font-size:13px;text-align:center;margin-top:14px;display:none;}
+.secure-note{margin-top:22px;display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px;justify-content:center;}
+
+/* HEADER */
+#dashboard{display:none;}
+header{
+  background:rgba(15,15,26,.95);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);
+  padding:0 28px;height:62px;display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:100;
+}
+.h-brand{font-family:'Syne',sans-serif;font-size:20px;font-weight:900;
+  background:linear-gradient(135deg,var(--a1),var(--a2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.h-right{display:flex;align-items:center;gap:12px;}
+.h-tag{background:rgba(139,92,246,.2);border:1px solid rgba(139,92,246,.35);color:var(--a2);font-size:11px;font-weight:700;padding:4px 11px;border-radius:20px;letter-spacing:.05em;}
+.h-refresh{display:flex;align-items:center;gap:6px;background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.25);color:var(--a4);font-size:12px;font-weight:600;padding:5px 12px;border-radius:20px;}
+.rdot{width:7px;height:7px;border-radius:50%;background:var(--a4);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.logout-btn{background:transparent;border:1px solid var(--border);color:var(--muted);padding:7px 14px;border-radius:8px;font-family:inherit;font-size:12px;cursor:pointer;transition:all .2s;}
+.logout-btn:hover{border-color:var(--danger);color:var(--danger);}
+
+/* MAIN */
+main{padding:28px 32px;max-width:1500px;margin:0 auto;}
+.page-title{font-family:'Syne',sans-serif;font-size:30px;font-weight:900;margin-bottom:4px;}
+.page-sub{color:var(--muted);font-size:14px;margin-bottom:28px;}
+
+.sec-head{display:flex;align-items:center;gap:10px;margin-bottom:18px;margin-top:36px;}
+.sec-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.sec-title{font-family:'Syne',sans-serif;font-size:16px;font-weight:800;}
+.sec-sub{color:var(--muted);font-size:12px;margin-left:auto;}
+
+/* KPI */
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:20px;}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px 18px;position:relative;overflow:hidden;transition:transform .2s,border-color .2s;}
+.kpi:hover{transform:translateY(-2px);border-color:var(--a2);}
+.kpi::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--kbar,linear-gradient(90deg,var(--a1),var(--a2)));}
+.kpi-lbl{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;}
+.kpi-val{font-family:'Syne',sans-serif;font-size:26px;font-weight:900;margin-bottom:6px;line-height:1;}
+.kpi-meta{font-size:12px;color:var(--muted);}
+
+.badge{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px;}
+.b-up{background:rgba(52,211,153,.15);color:var(--success);}
+.b-dn{background:rgba(244,63,94,.15);color:var(--danger);}
+.b-warn{background:rgba(251,191,36,.15);color:var(--warn);}
+.b-neu{background:rgba(119,119,170,.15);color:var(--muted);}
+
+/* GRIDS */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;margin-bottom:18px;}
+.g1{margin-bottom:18px;}
+
+/* CARD */
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;}
+.card-head{padding:18px 22px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;}
+.card-title{font-size:14px;font-weight:700;margin-bottom:3px;}
+.card-sub{font-size:11px;color:var(--muted);}
+.card-body{padding:20px 22px;}
+.card-foot{padding:10px 22px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);}
+
+/* EMBED */
+.embed-wrap{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;margin-bottom:18px;}
+.embed-head{padding:16px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.embed-title{font-size:14px;font-weight:700;}
+.embed-live{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--a4);font-weight:600;}
+.embed-live span{width:6px;height:6px;border-radius:50%;background:var(--a4);animation:pulse 2s infinite;}
+iframe{width:100%;border:none;display:block;background:#fff;min-height:500px;}
+.embed-foot{padding:10px 22px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);}
+
+/* TABLE */
+.tbl-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+thead th{padding:11px 14px;text-align:left;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.09em;background:var(--surface);border-bottom:1px solid var(--border);white-space:nowrap;}
+tbody td{padding:12px 14px;border-bottom:1px solid rgba(37,37,56,.7);white-space:nowrap;}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover td{background:rgba(255,255,255,.02);}
+.num{font-weight:600;font-variant-numeric:tabular-nums;}
+.good{color:var(--success);}
+.bad{color:var(--danger);}
+.warnc{color:var(--warn);}
+.dim{color:var(--muted);}
+.avg3{background:rgba(139,92,246,.07)!important;color:var(--a2);font-weight:700;}
+.avg6{background:rgba(34,211,238,.07)!important;color:var(--a3);font-weight:700;}
+.rp{display:inline-block;padding:2px 9px;border-radius:20px;font-size:12px;font-weight:700;}
+.rp-apac{background:rgba(34,211,238,.12);color:var(--a3);}
+.rp-emea{background:rgba(139,92,246,.12);color:var(--a2);}
+.rp-amer{background:rgba(249,115,22,.12);color:var(--a1);}
+
+canvas{max-height:240px;}
+.donut-wrap{max-width:280px;margin:0 auto;padding:8px 0;}
+
+@media(max-width:1100px){.kpi-row{grid-template-columns:repeat(3,1fr);}}
+@media(max-width:800px){.kpi-row{grid-template-columns:1fr 1fr;}.g2,.g3{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-wrap">
+    <div class="login-icon">🔐</div>
+    <div class="login-brand">Flippa Analytics</div>
+    <div class="login-hint">Authorised access only — internal dashboard</div>
+    <label>Username</label>
+    <input type="text" id="uid" placeholder="Enter username" autocomplete="username">
+    <label>Password</label>
+    <input type="password" id="pwd" placeholder="Enter password" autocomplete="current-password">
+    <button class="login-btn" onclick="doLogin()">Sign In →</button>
+    <div class="login-err" id="lerr">Incorrect credentials. Please try again.</div>
+    <div class="secure-note">🔒 SHA-256 encrypted · Session only · No data stored</div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard">
+  <header>
+    <div class="h-brand">Flippa Analytics</div>
+    <div class="h-right">
+      <span class="h-tag">FY26 LIVE</span>
+      <span class="h-refresh"><span class="rdot"></span>Auto-refresh 30 min · <span id="countdown">30:00</span></span>
+      <button class="logout-btn" onclick="doLogout()">Sign Out</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="page-title">Paid Listings Dashboard</div>
+    <div class="page-sub">FY26 · Jul 25 – Mar 26 · Price points & regional breakdown · Targets from FY26 Planning Grid</div>
+
+    <!-- METABASE LIVE EMBED -->
+    <div class="sec-head" style="margin-top:0;">
+      <div class="sec-dot" style="background:var(--a4);"></div>
+      <div class="sec-title">Live Metabase Report</div>
+      <div class="sec-sub">Embedded from metabase.in.flippa.com · reloads every 30 min</div>
+    </div>
+    <div class="embed-wrap">
+      <div class="embed-head">
+        <div class="embed-title">Paid Listings — Live Metabase Data</div>
+        <div class="embed-live"><span></span>Live · reloads in <span id="next-reload">30:00</span></div>
+      </div>
+      <iframe id="mb-frame"
+        src="https://metabase.in.flippa.com/public/question/f8c98b00-f409-4086-963d-3a48d6a8a72d"
+        frameborder="0" scrolling="no" allowtransparency="true"></iframe>
+      <div class="embed-foot">Last reloaded: <span id="last-reload">On page load</span> · Source: metabase.in.flippa.com/public/question/f8c98b00...</div>
+    </div>
+
+    <!-- KPI STRIP -->
+    <div class="sec-head">
+      <div class="sec-dot" style="background:var(--a1);"></div>
+      <div class="sec-title">FY26 YTD Summary</div>
+      <div class="sec-sub">Jul 25 – Mar 26 · Targets from planning grid master</div>
+    </div>
+    <div class="kpi-row">
+      <div class="kpi" style="--kbar:linear-gradient(90deg,var(--a3),var(--a2));">
+        <div class="kpi-lbl">0k–10k · YTD Actual</div>
+        <div class="kpi-val" style="color:var(--a3)">9,222</div>
+        <div class="kpi-meta">Target: 9,869 &nbsp;<span class="badge b-warn">93.4%</span></div>
+      </div>
+      <div class="kpi" style="--kbar:linear-gradient(90deg,var(--a2),var(--a5));">
+        <div class="kpi-lbl">10k–100k · YTD Actual</div>
+        <div class="kpi-val" style="color:var(--a2)">2,123</div>
+        <div class="kpi-meta">Target: 2,069 &nbsp;<span class="badge b-up">↑ 102.6%</span></div>
+      </div>
+      <div class="kpi" style="--kbar:linear-gradient(90deg,var(--a1),var(--a5));">
+        <div class="kpi-lbl">100k+ · YTD Actual</div>
+        <div class="kpi-val" style="color:var(--a1)">843</div>
+        <div class="kpi-meta">Target: 921 &nbsp;<span class="badge b-dn">↓ 91.5%</span></div>
+      </div>
+      <div class="kpi" style="--kbar:linear-gradient(90deg,var(--a4),var(--a3));">
+        <div class="kpi-lbl">Total YTD · All Tiers</div>
+        <div class="kpi-val" style="color:var(--a4)">12,188</div>
+        <div class="kpi-meta">9 months combined</div>
+      </div>
+      <div class="kpi" style="--kbar:linear-gradient(90deg,var(--a2),var(--a3));">
+        <div class="kpi-lbl">10k–100k · YoY Growth</div>
+        <div class="kpi-val" style="color:var(--a4)">+23.7%</div>
+        <div class="kpi-meta">vs FY25 same period <span class="badge b-up">↑ Strong</span></div>
+      </div>
+    </div>
+
+    <!-- PRICE POINT SECTION -->
+    <div class="sec-head">
+      <div class="sec-dot" style="background:var(--a2);"></div>
+      <div class="sec-title">Price Point Analysis</div>
+      <div class="sec-sub">Actual vs Target · 3-month avg · 6-month avg · YoY%</div>
+    </div>
+
+    <div class="g2">
+      <div class="card">
+        <div class="card-head"><div><div class="card-title">Actual vs Target — All Tiers</div><div class="card-sub">Monthly grouped bar + target line</div></div></div>
+        <div class="card-body"><canvas id="c-vstarget"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div><div class="card-title">YoY Growth % by Price Tier</div><div class="card-sub">Month-on-month year-over-year</div></div></div>
+        <div class="card-body"><canvas id="c-yoy"></canvas></div>
+      </div>
+    </div>
+
+    <!-- TABLE 0k-10k -->
+    <div class="card g1">
+      <div class="card-head">
+        <div><div class="card-title">0k – 10k Tier · Monthly Detail</div><div class="card-sub">Actual · Target · % to Target · 3M Avg · 6M Avg · YoY%</div></div>
+        <span class="badge b-warn">93.4% to YTD target</span>
+      </div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Month</th><th>Actual</th><th>Target</th><th>% to Target</th><th class="avg3">3M Avg</th><th class="avg6">6M Avg</th><th>Prior Year</th><th>YoY %</th><th>Status</th></tr></thead>
+        <tbody id="tbl-s"></tbody>
+      </table></div>
+      <div class="card-foot">Source: FY26 Planning Grid · Daily Update FY26 · Targets from planning grid master</div>
+    </div>
+
+    <!-- TABLE 10k-100k -->
+    <div class="card g1">
+      <div class="card-head">
+        <div><div class="card-title">10k – 100k Tier · Monthly Detail</div><div class="card-sub">Actual · Target · % to Target · 3M Avg · 6M Avg · YoY%</div></div>
+        <span class="badge b-up">↑ 102.6% to YTD target</span>
+      </div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Month</th><th>Actual</th><th>Target</th><th>% to Target</th><th class="avg3">3M Avg</th><th class="avg6">6M Avg</th><th>Prior Year</th><th>YoY %</th><th>Status</th></tr></thead>
+        <tbody id="tbl-m"></tbody>
+      </table></div>
+      <div class="card-foot">Source: FY26 Planning Grid · Daily Update FY26 · Targets from planning grid master</div>
+    </div>
+
+    <!-- TABLE 100k+ -->
+    <div class="card g1">
+      <div class="card-head">
+        <div><div class="card-title">100k+ Tier · Monthly Detail</div><div class="card-sub">Actual · Target · % to Target · 3M Avg · 6M Avg · YoY%</div></div>
+        <span class="badge b-dn">↓ 91.5% to YTD target</span>
+      </div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Month</th><th>Actual</th><th>Target</th><th>% to Target</th><th class="avg3">3M Avg</th><th class="avg6">6M Avg</th><th>Prior Year</th><th>YoY %</th><th>Status</th></tr></thead>
+        <tbody id="tbl-l"></tbody>
+      </table></div>
+      <div class="card-foot">Source: FY26 Planning Grid · Daily Update FY26 · Targets from planning grid master</div>
+    </div>
+
+    <!-- REGIONAL SECTION -->
+    <div class="sec-head">
+      <div class="sec-dot" style="background:var(--a3);"></div>
+      <div class="sec-title">Regional Analysis</div>
+      <div class="sec-sub">APAC · EMEA · Americas · Share % · vs Target · 3M & 6M averages</div>
+    </div>
+
+    <div class="g3">
+      <div class="card">
+        <div class="card-head"><div><div class="card-title">10k–100k Regional Share</div><div class="card-sub">FY26 YTD proportion</div></div></div>
+        <div class="card-body"><div class="donut-wrap"><canvas id="c-donut-m"></canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div><div class="card-title">100k+ Regional Share</div><div class="card-sub">FY26 YTD proportion</div></div></div>
+        <div class="card-body"><div class="donut-wrap"><canvas id="c-donut-l"></canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div><div class="card-title">YTD Regional KPIs</div><div class="card-sub">10k–100k tier · volume & share</div></div></div>
+        <div class="card-body" id="region-kpis" style="padding:16px 18px;"></div>
+      </div>
+    </div>
+
+    <div class="g2">
+      <div class="card">
+        <div class="card-head"><div><div class="card-title">10k–100k by Region — Monthly</div><div class="card-sub">APAC · EMEA · Americas trend</div></div></div>
+        <div class="card-body"><canvas id="c-reg-m"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div><div class="card-title">100k+ by Region — Monthly</div><div class="card-sub">APAC · EMEA · Americas trend</div></div></div>
+        <div class="card-body"><canvas id="c-reg-l"></canvas></div>
+      </div>
+    </div>
+
+    <!-- REGIONAL TABLE 10k-100k -->
+    <div class="card g1">
+      <div class="card-head"><div>
+        <div class="card-title">Regional Detail — 10k–100k Tier</div>
+        <div class="card-sub">Actual · Target · Share % · 3M Avg · 6M Avg per region per month</div>
+      </div></div>
+      <div class="tbl-wrap"><table>
+        <thead><tr>
+          <th>Month</th>
+          <th>APAC</th><th>APAC Tgt</th>
+          <th>EMEA</th><th>EMEA Tgt</th>
+          <th>Americas</th><th>Amer Tgt</th>
+          <th>Total</th><th>APAC%</th><th>EMEA%</th><th>Amer%</th>
+          <th class="avg3">3M Avg</th><th class="avg6">6M Avg</th>
+        </tr></thead>
+        <tbody id="tbl-reg-m"></tbody>
+      </table></div>
+      <div class="card-foot">Source: FY26 Planning Grid · rows 65/70/75 · Regional targets rows 65/70/75 col+1</div>
+    </div>
+
+    <!-- REGIONAL TABLE 100k+ -->
+    <div class="card g1">
+      <div class="card-head"><div>
+        <div class="card-title">Regional Detail — 100k+ Tier</div>
+        <div class="card-sub">Actual · Target · Share % · 3M Avg · 6M Avg per region per month</div>
+      </div></div>
+      <div class="tbl-wrap"><table>
+        <thead><tr>
+          <th>Month</th>
+          <th>APAC</th><th>APAC Tgt</th>
+          <th>EMEA</th><th>EMEA Tgt</th>
+          <th>Americas</th><th>Amer Tgt</th>
+          <th>Total</th><th>APAC%</th><th>EMEA%</th><th>Amer%</th>
+          <th class="avg3">3M Avg</th><th class="avg6">6M Avg</th>
+        </tr></thead>
+        <tbody id="tbl-reg-l"></tbody>
+      </table></div>
+      <div class="card-foot">Source: FY26 Planning Grid · rows 66/71/76 · Regional targets rows 66/71/76 col+1</div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// ── SECURITY ──
+const HASH={u:'fda32598ff52cbe431f6db005b5b8991afb763a298d115aa74286a20526eb356',p:'77a5189bf6eb30b917fc162b5b65f53b6ed3f37f069576d0b30aef4752ef5711'};
+async function sha256(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');}
+async function doLogin(){
+  const u=document.getElementById('uid').value.trim();
+  const p=document.getElementById('pwd').value;
+  const[uh,ph]=await Promise.all([sha256(u),sha256(p)]);
+  if(uh===HASH.u&&ph===HASH.p){sessionStorage.setItem('auth','1');document.getElementById('login-screen').style.display='none';document.getElementById('dashboard').style.display='block';init();}
+  else{document.getElementById('lerr').style.display='block';document.getElementById('pwd').value='';}
+}
+function doLogout(){sessionStorage.removeItem('auth');location.reload();}
+document.getElementById('pwd').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+document.getElementById('uid').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('pwd').focus();});
+if(sessionStorage.getItem('auth')==='1'){document.getElementById('login-screen').style.display='none';document.getElementById('dashboard').style.display='block';}
+
+// ── AUTO-REFRESH (30 min) ──
+let remaining=1800;
+function tickRefresh(){
+  remaining--;
+  const m=String(Math.floor(remaining/60)).padStart(2,'0');
+  const s=String(remaining%60).padStart(2,'0');
+  const t=`${m}:${s}`;
+  ['countdown','next-reload'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=t;});
+  if(remaining<=0){
+    const f=document.getElementById('mb-frame');
+    if(f){f.src=f.src;const lr=document.getElementById('last-reload');if(lr)lr.textContent=new Date().toLocaleTimeString();}
+    remaining=1800;
+  }
+}
+
+// ── DATA (from FY26 Planning Grid) ──
+const months=['Jul 25','Aug 25','Sept 25','Oct 25','Nov 25','Dec 25','Jan 26','Feb 26','Mar 26'];
+const D={
+  s:{actual:[1116,1084,1023,1032,971,919,1173,980,924],target:[1077,1082,1087,1092,1097,1101,1106,1111,1116],prior:[995,947,1008,1013,925,932,1027,984,1188]},
+  m:{actual:[303,236,236,236,251,238,315,241,267],target:[224,226,227,228,230,231,233,234,236],prior:[192,199,183,219,198,199,249,196,237]},
+  l:{actual:[130,103,123,112,88,119,64,57,47],target:[114,118,122,126,130,133,59,59,60],prior:[102,91,81,102,83,91,60,56,51]}
+};
+const R={
+  am:[46,33,36,35,37,39,38,47,44],em:[158,109,121,119,135,113,169,112,146],mm:[99,93,79,82,79,86,108,82,77],
+  amt:[36,36,36,37,37,37,37,37,38],emt:[116,117,118,118,119,120,120,121,122],mmt:[72,73,73,74,74,75,75,75,76],
+  al:[19,20,17,20,13,20,10,10,2],el:[61,45,58,50,34,53,35,32,24],ml:[50,38,48,42,41,46,29,21,21],
+  alt:[19,19,20,20,21,21,22,23,10],elt:[52,54,55,56,58,59,61,63,29],mlt:[43,46,48,50,52,53,55,56,21]
+};
+
+// ── HELPERS ──
+const ravg=(arr,i,n)=>{const sl=arr.slice(Math.max(0,i-n+1),i+1);return(sl.reduce((a,b)=>a+b,0)/sl.length).toFixed(0);};
+const yoyPct=(a,p)=>p?(((a-p)/p)*100).toFixed(1):null;
+const pctTgt=(a,t)=>t?((a/t)*100).toFixed(1):null;
+const shr=(v,tot)=>tot?((v/tot)*100).toFixed(1):'0';
+
+function pctCls(v){if(!v)return '';const n=parseFloat(v);if(n>=100)return 'good';if(n>=90)return 'warnc';return 'bad';}
+function statusBadge(a,t){
+  if(!t)return '<span class="badge b-neu">—</span>';
+  const r=a/t;
+  if(r>=1)return '<span class="badge b-up">✓ On track</span>';
+  if(r>=0.9)return '<span class="badge b-warn">~ Close</span>';
+  return '<span class="badge b-dn">↓ Behind</span>';
+}
+function yoyBadge(v){
+  if(v===null)return '<span class="dim">—</span>';
+  const n=parseFloat(v),c=n>=0?'b-up':'b-dn',a=n>=0?'↑':'↓';
+  return `<span class="badge ${c}">${a} ${Math.abs(n)}%</span>`;
+}
+function tgtCls(a,t){return t?(a>=t?'good':'bad'):'';}
+
+// ── BUILD PRICE TABLE ──
+function buildPriceTbl(id,tier){
+  const tb=document.getElementById(id);
+  months.forEach((m,i)=>{
+    const a=tier.actual[i],t=tier.target[i],py=tier.prior[i];
+    const pct=pctTgt(a,t),a3=ravg(tier.actual,i,3),a6=ravg(tier.actual,i,6),yy=yoyPct(a,py);
+    tb.innerHTML+=`<tr>
+      <td><strong>${m}</strong></td>
+      <td class="num">${a.toLocaleString()}</td>
+      <td class="num dim">${t?t.toLocaleString():'—'}</td>
+      <td class="num ${pctCls(pct)}">${pct?pct+'%':'—'}</td>
+      <td class="num avg3">${a3}</td>
+      <td class="num avg6">${a6}</td>
+      <td class="num dim">${py?py.toLocaleString():'—'}</td>
+      <td>${yoyBadge(yy)}</td>
+      <td>${statusBadge(a,t)}</td>
+    </tr>`;
+  });
+}
+
+// ── BUILD REGION TABLE ──
+function buildRegionTbl(id,apac,emea,amer,at,et,mt){
+  const tb=document.getElementById(id);
+  const tots=months.map((_,i)=>apac[i]+emea[i]+amer[i]);
+  months.forEach((m,i)=>{
+    const tot=tots[i],a3=ravg(tots,i,3),a6=ravg(tots,i,6);
+    tb.innerHTML+=`<tr>
+      <td><strong>${m}</strong></td>
+      <td class="num ${tgtCls(apac[i],at[i])}"><span class="rp rp-apac">${apac[i]}</span></td>
+      <td class="num dim">${at[i]||'—'}</td>
+      <td class="num ${tgtCls(emea[i],et[i])}"><span class="rp rp-emea">${emea[i]}</span></td>
+      <td class="num dim">${et[i]||'—'}</td>
+      <td class="num ${tgtCls(amer[i],mt[i])}"><span class="rp rp-amer">${amer[i]}</span></td>
+      <td class="num dim">${mt[i]||'—'}</td>
+      <td class="num"><strong>${tot}</strong></td>
+      <td class="dim">${shr(apac[i],tot)}%</td>
+      <td class="dim">${shr(emea[i],tot)}%</td>
+      <td class="dim">${shr(amer[i],tot)}%</td>
+      <td class="num avg3">${a3}</td>
+      <td class="num avg6">${a6}</td>
+    </tr>`;
+  });
+}
+
+// ── REGION KPI PANEL ──
+function buildRegionKPIs(){
+  const yA=R.am.reduce((a,b)=>a+b,0),yE=R.em.reduce((a,b)=>a+b,0),yM=R.mm.reduce((a,b)=>a+b,0);
+  const tot=yA+yE+yM;
+  const mk=(lbl,val,col,acolor)=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:rgba(${col},.07);border-radius:10px;border:1px solid rgba(${col},.15);margin-bottom:10px;">
+      <div>
+        <div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;">${lbl}</div>
+        <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:900;color:${acolor};">${val}</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:20px;font-weight:900;color:${acolor};">${shr(val,tot)}%</div>
+        <div style="font-size:11px;color:var(--muted);">YTD share</div>
+      </div>
+    </div>`;
+  document.getElementById('region-kpis').innerHTML=
+    mk('APAC',yA,'34,211,238','var(--a3)')+
+    mk('EMEA',yE,'139,92,246','var(--a2)')+
+    mk('Americas',yM,'249,115,22','var(--a1)');
+}
+
+// ── CHARTS ──
+Chart.defaults.color='#7777aa';
+Chart.defaults.font.family='DM Sans';
+const grid={color:'rgba(37,37,56,.8)',drawBorder:false};
+
+function initCharts(){
+  // Actual vs Target
+  new Chart(document.getElementById('c-vstarget'),{
+    type:'bar',
+    data:{labels:months,datasets:[
+      {label:'0k–10k',data:D.s.actual,backgroundColor:'#22d3ee99',borderColor:'#22d3ee',borderWidth:1.5,borderRadius:4},
+      {label:'10k–100k',data:D.m.actual,backgroundColor:'#8b5cf699',borderColor:'#8b5cf6',borderWidth:1.5,borderRadius:4},
+      {label:'100k+',data:D.l.actual,backgroundColor:'#f9731699',borderColor:'#f97316',borderWidth:1.5,borderRadius:4},
+      {label:'0k–10k Tgt',data:D.s.target,type:'line',borderColor:'#22d3ee',borderWidth:1.5,borderDash:[4,3],pointRadius:0,fill:false,tension:.3},
+      {label:'10k–100k Tgt',data:D.m.target,type:'line',borderColor:'#8b5cf6',borderWidth:1.5,borderDash:[4,3],pointRadius:0,fill:false,tension:.3},
+    ]},
+    options:{responsive:true,plugins:{legend:{display:true,labels:{boxWidth:10,padding:10,font:{size:11}}}},scales:{x:{grid},y:{grid}}}
+  });
+
+  // YoY %
+  new Chart(document.getElementById('c-yoy'),{
+    type:'line',
+    data:{labels:months,datasets:[
+      {label:'0k–10k',data:months.map((_,i)=>parseFloat(yoyPct(D.s.actual[i],D.s.prior[i]))),borderColor:'#22d3ee',tension:.4,pointRadius:4,borderWidth:2},
+      {label:'10k–100k',data:months.map((_,i)=>parseFloat(yoyPct(D.m.actual[i],D.m.prior[i]))),borderColor:'#8b5cf6',tension:.4,pointRadius:4,borderWidth:2},
+      {label:'100k+',data:months.map((_,i)=>parseFloat(yoyPct(D.l.actual[i],D.l.prior[i]))),borderColor:'#f97316',tension:.4,pointRadius:4,borderWidth:2},
+    ]},
+    options:{responsive:true,plugins:{legend:{display:true,labels:{boxWidth:10,padding:10,font:{size:11}}}},
+      scales:{x:{grid},y:{grid,ticks:{callback:v=>v+'%'}}}}
+  });
+
+  // Donuts
+  const donut=(id,a,e,m)=>new Chart(document.getElementById(id),{
+    type:'doughnut',
+    data:{labels:['APAC','EMEA','Americas'],datasets:[{data:[a,e,m],backgroundColor:['#22d3ee','#8b5cf6','#f97316'],borderWidth:0,hoverOffset:6}]},
+    options:{cutout:'70%',plugins:{legend:{display:true,position:'bottom',labels:{boxWidth:11,padding:12,font:{size:12}}}}}
+  });
+  donut('c-donut-m',R.am.reduce((a,b)=>a+b,0),R.em.reduce((a,b)=>a+b,0),R.mm.reduce((a,b)=>a+b,0));
+  donut('c-donut-l',R.al.reduce((a,b)=>a+b,0),R.el.reduce((a,b)=>a+b,0),R.ml.reduce((a,b)=>a+b,0));
+
+  // Region lines
+  const regLine=(id,a,e,m)=>new Chart(document.getElementById(id),{
+    type:'line',
+    data:{labels:months,datasets:[
+      {label:'APAC',data:a,borderColor:'#22d3ee',backgroundColor:'rgba(34,211,238,.1)',fill:true,tension:.4,pointRadius:4,borderWidth:2},
+      {label:'EMEA',data:e,borderColor:'#8b5cf6',backgroundColor:'rgba(139,92,246,.1)',fill:true,tension:.4,pointRadius:4,borderWidth:2},
+      {label:'Americas',data:m,borderColor:'#f97316',backgroundColor:'rgba(249,115,22,.1)',fill:true,tension:.4,pointRadius:4,borderWidth:2},
+    ]},
+    options:{responsive:true,plugins:{legend:{display:true,labels:{boxWidth:10,padding:10,font:{size:11}}}},scales:{x:{grid},y:{grid}}}
+  });
+  regLine('c-reg-m',R.am,R.em,R.mm);
+  regLine('c-reg-l',R.al,R.el,R.ml);
+}
+
+// ── INIT ──
+let inited=false;
+function init(){
+  if(inited)return;inited=true;
+  buildPriceTbl('tbl-s',D.s);
+  buildPriceTbl('tbl-m',D.m);
+  buildPriceTbl('tbl-l',D.l);
+  buildRegionTbl('tbl-reg-m',R.am,R.em,R.mm,R.amt,R.emt,R.mmt);
+  buildRegionTbl('tbl-reg-l',R.al,R.el,R.ml,R.alt,R.elt,R.mlt);
+  buildRegionKPIs();
+  initCharts();
+  setInterval(tickRefresh,1000);
+  document.getElementById('last-reload').textContent=new Date().toLocaleTimeString();
+}
+if(sessionStorage.getItem('auth')==='1')init();
+</script>
+</body>
+</html>
