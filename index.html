@@ -108,14 +108,9 @@ main{padding:28px 32px;max-width:1500px;margin:0 auto;}
 .card-body{padding:20px 22px;}
 .card-foot{padding:10px 22px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);}
 
-/* EMBED */
-.embed-wrap{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;margin-bottom:18px;}
-.embed-head{padding:16px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
-.embed-title{font-size:14px;font-weight:700;}
-.embed-live{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--a4);font-weight:600;}
-.embed-live span{width:6px;height:6px;border-radius:50%;background:var(--a4);animation:pulse 2s infinite;}
-iframe{width:100%;border:none;display:block;background:#fff;min-height:500px;}
-.embed-foot{padding:10px 22px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);}
+/* TREND ARROW */
+.trend-up{color:var(--success);font-weight:700;}
+.trend-dn{color:var(--danger);font-weight:700;}
 
 /* TABLE */
 .tbl-wrap{overflow-x:auto;}
@@ -167,7 +162,7 @@ canvas{max-height:240px;}
     <div class="h-brand">Flippa Analytics</div>
     <div class="h-right">
       <span class="h-tag">FY26 LIVE</span>
-      <span class="h-refresh"><span class="rdot"></span>Auto-refresh 30 min · <span id="countdown">30:00</span></span>
+      <span class="h-refresh"><span class="rdot"></span>Live Dashboard</span>
       <button class="logout-btn" onclick="doLogout()">Sign Out</button>
     </div>
   </header>
@@ -176,21 +171,32 @@ canvas{max-height:240px;}
     <div class="page-title">Paid Listings Dashboard</div>
     <div class="page-sub">FY26 · Jul 25 – Mar 26 · Price points & regional breakdown · Targets from FY26 Planning Grid</div>
 
-    <!-- METABASE LIVE EMBED -->
+    <!-- CURRENT MONTH SUMMARY -->
     <div class="sec-head" style="margin-top:0;">
       <div class="sec-dot" style="background:var(--a4);"></div>
-      <div class="sec-title">Live Metabase Report</div>
-      <div class="sec-sub">Embedded from metabase.in.flippa.com · reloads every 30 min</div>
+      <div class="sec-title">Current Month — <span id="cm-label"></span></div>
+      <div class="sec-sub">Paid listings this month · trend vs prior month · projection to month-end</div>
     </div>
-    <div class="embed-wrap">
-      <div class="embed-head">
-        <div class="embed-title">Paid Listings — Live Metabase Data</div>
-        <div class="embed-live"><span></span>Live · reloads in <span id="next-reload">30:00</span></div>
+
+    <!-- Current Month Total KPI -->
+    <div class="kpi-row" style="grid-template-columns:repeat(4,1fr);" id="cm-kpis"></div>
+
+    <!-- Current Month by Price Tier -->
+    <div class="g2" style="margin-top:4px;">
+      <div class="card">
+        <div class="card-head"><div><div class="card-title">By Price Tier</div><div class="card-sub">Actual · Target · vs Previous Month · Projection</div></div></div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Tier</th><th>Actual</th><th>Target</th><th>% to Tgt</th><th>Prev Month</th><th>MoM Trend</th><th>Projected</th><th>Status</th></tr></thead>
+          <tbody id="cm-price-tbl"></tbody>
+        </table></div>
       </div>
-      <iframe id="mb-frame"
-        src="https://metabase.in.flippa.com/public/question/f8c98b00-f409-4086-963d-3a48d6a8a72d"
-        frameborder="0" scrolling="no" allowtransparency="true"></iframe>
-      <div class="embed-foot">Last reloaded: <span id="last-reload">On page load</span> · Source: metabase.in.flippa.com/public/question/f8c98b00...</div>
+      <div class="card">
+        <div class="card-head"><div><div class="card-title">By Region</div><div class="card-sub">10k–100k & 100k+ tiers · Actual · vs Previous Month · Projection</div></div></div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Region</th><th>10k–100k</th><th>100k+</th><th>Total</th><th>Prev Month</th><th>MoM Trend</th><th>Projected</th></tr></thead>
+          <tbody id="cm-region-tbl"></tbody>
+        </table></div>
+      </div>
     </div>
 
     <!-- KPI STRIP -->
@@ -380,15 +386,120 @@ if(sessionStorage.getItem('auth')==='1'){document.getElementById('login-screen')
 let remaining=1800;
 function tickRefresh(){
   remaining--;
-  const m=String(Math.floor(remaining/60)).padStart(2,'0');
-  const s=String(remaining%60).padStart(2,'0');
-  const t=`${m}:${s}`;
-  ['countdown','next-reload'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=t;});
-  if(remaining<=0){
-    const f=document.getElementById('mb-frame');
-    if(f){f.src=f.src;const lr=document.getElementById('last-reload');if(lr)lr.textContent=new Date().toLocaleTimeString();}
-    remaining=1800;
-  }
+  if(remaining<=0)remaining=1800;
+}
+
+// ── CURRENT MONTH SUMMARY ──
+function buildCurrentMonth(){
+  const ci=months.length-1; // current month index (last in array)
+  const pi=ci-1; // previous month index
+  const cm=months[ci];
+  document.getElementById('cm-label').textContent=cm;
+
+  // Current & previous month totals
+  const curS=D.s.actual[ci],curM=D.m.actual[ci],curL=D.l.actual[ci];
+  const curTotal=curS+curM+curL;
+  const prevS=D.s.actual[pi],prevM=D.m.actual[pi],prevL=D.l.actual[pi];
+  const prevTotal=prevS+prevM+prevL;
+  const tgtS=D.s.target[ci],tgtM=D.m.target[ci],tgtL=D.l.target[ci];
+  const tgtTotal=tgtS+tgtM+tgtL;
+
+  // Projection: use daily run rate. Assume data is through day 29 of 31 for Mar.
+  const dayOfMonth=29,daysInMonth=31;
+  const projRate=curTotal/dayOfMonth;
+  const projTotal=Math.round(projRate*daysInMonth);
+  const projS=Math.round((curS/dayOfMonth)*daysInMonth);
+  const projM=Math.round((curM/dayOfMonth)*daysInMonth);
+  const projL=Math.round((curL/dayOfMonth)*daysInMonth);
+
+  // MoM change
+  const momPct=((curTotal-prevTotal)/prevTotal*100).toFixed(1);
+  const momDir=parseFloat(momPct)>=0;
+
+  // KPI cards
+  const kpis=document.getElementById('cm-kpis');
+  kpis.innerHTML=`
+    <div class="kpi" style="--kbar:linear-gradient(90deg,var(--a4),var(--a3));">
+      <div class="kpi-lbl">Total Paid Listings · ${cm}</div>
+      <div class="kpi-val" style="color:var(--a4)">${curTotal.toLocaleString()}</div>
+      <div class="kpi-meta">Target: ${tgtTotal.toLocaleString()} &nbsp;<span class="badge ${curTotal>=tgtTotal?'b-up':'b-dn'}">${pctTgt(curTotal,tgtTotal)}%</span></div>
+    </div>
+    <div class="kpi" style="--kbar:linear-gradient(90deg,${momDir?'var(--a4),var(--a3)':'var(--a5),var(--a1)'});">
+      <div class="kpi-lbl">Trend vs ${months[pi]}</div>
+      <div class="kpi-val" style="color:${momDir?'var(--success)':'var(--danger)'}">${momDir?'↑':'↓'} ${Math.abs(momPct)}%</div>
+      <div class="kpi-meta">${prevTotal.toLocaleString()} → ${curTotal.toLocaleString()} &nbsp;<span class="badge ${momDir?'b-up':'b-dn'}">${momDir?'Up':'Down'} ${Math.abs(curTotal-prevTotal)}</span></div>
+    </div>
+    <div class="kpi" style="--kbar:linear-gradient(90deg,var(--a2),var(--a3));">
+      <div class="kpi-lbl">Projected Month-End</div>
+      <div class="kpi-val" style="color:var(--a2)">${projTotal.toLocaleString()}</div>
+      <div class="kpi-meta">Based on day ${dayOfMonth}/${daysInMonth} run rate &nbsp;<span class="badge ${projTotal>=tgtTotal?'b-up':'b-warn'}">${projTotal>=tgtTotal?'On track':'Below target'}</span></div>
+    </div>
+    <div class="kpi" style="--kbar:linear-gradient(90deg,var(--a1),var(--a2));">
+      <div class="kpi-lbl">Prior Year · ${cm}</div>
+      <div class="kpi-val" style="color:var(--a1)">${(D.s.prior[ci]+D.m.prior[ci]+D.l.prior[ci]).toLocaleString()}</div>
+      <div class="kpi-meta">YoY: ${yoyBadge(yoyPct(curTotal,D.s.prior[ci]+D.m.prior[ci]+D.l.prior[ci]))}</div>
+    </div>`;
+
+  // Price tier table
+  const ptbl=document.getElementById('cm-price-tbl');
+  const tiers=[
+    {name:'0k – 10k',cur:curS,tgt:tgtS,prev:prevS,proj:projS,col:'a3'},
+    {name:'10k – 100k',cur:curM,tgt:tgtM,prev:prevM,proj:projM,col:'a2'},
+    {name:'100k+',cur:curL,tgt:tgtL,prev:prevL,proj:projL,col:'a1'},
+    {name:'All Tiers',cur:curTotal,tgt:tgtTotal,prev:prevTotal,proj:projTotal,col:'a4'}
+  ];
+  tiers.forEach(t=>{
+    const pct=pctTgt(t.cur,t.tgt);
+    const mom=((t.cur-t.prev)/t.prev*100).toFixed(1);
+    const momUp=parseFloat(mom)>=0;
+    ptbl.innerHTML+=`<tr>
+      <td><strong style="color:var(--${t.col})">${t.name}</strong></td>
+      <td class="num">${t.cur.toLocaleString()}</td>
+      <td class="num dim">${t.tgt.toLocaleString()}</td>
+      <td class="num ${pctCls(pct)}">${pct}%</td>
+      <td class="num dim">${t.prev.toLocaleString()}</td>
+      <td class="${momUp?'trend-up':'trend-dn'}">${momUp?'↑':'↓'} ${Math.abs(mom)}%</td>
+      <td class="num">${t.proj.toLocaleString()}</td>
+      <td>${statusBadge(t.cur,t.tgt)}</td>
+    </tr>`;
+  });
+
+  // Region table
+  const rtbl=document.getElementById('cm-region-tbl');
+  const regions=[
+    {name:'APAC',cls:'rp-apac',m10:R.am[ci],m100:R.al[ci],pm10:R.am[pi],pm100:R.al[pi]},
+    {name:'EMEA',cls:'rp-emea',m10:R.em[ci],m100:R.el[ci],pm10:R.em[pi],pm100:R.el[pi]},
+    {name:'Americas',cls:'rp-amer',m10:R.mm[ci],m100:R.ml[ci],pm10:R.mm[pi],pm100:R.ml[pi]}
+  ];
+  regions.forEach(r=>{
+    const curR=r.m10+r.m100, prevR=r.pm10+r.pm100;
+    const mom=prevR?((curR-prevR)/prevR*100).toFixed(1):'—';
+    const momUp=parseFloat(mom)>=0;
+    const projR=Math.round((curR/dayOfMonth)*daysInMonth);
+    rtbl.innerHTML+=`<tr>
+      <td><span class="rp ${r.cls}"><strong>${r.name}</strong></span></td>
+      <td class="num">${r.m10}</td>
+      <td class="num">${r.m100}</td>
+      <td class="num"><strong>${curR}</strong></td>
+      <td class="num dim">${prevR}</td>
+      <td class="${momUp?'trend-up':'trend-dn'}">${momUp?'↑':'↓'} ${typeof mom==='string'&&mom==='—'?'—':Math.abs(mom)+'%'}</td>
+      <td class="num">${projR}</td>
+    </tr>`;
+  });
+  // Total row
+  const curRegTotal=regions.reduce((s,r)=>s+r.m10+r.m100,0);
+  const prevRegTotal=regions.reduce((s,r)=>s+r.pm10+r.pm100,0);
+  const regMom=((curRegTotal-prevRegTotal)/prevRegTotal*100).toFixed(1);
+  const regMomUp=parseFloat(regMom)>=0;
+  rtbl.innerHTML+=`<tr style="border-top:2px solid var(--border);">
+    <td><strong>Total</strong></td>
+    <td class="num"><strong>${regions.reduce((s,r)=>s+r.m10,0)}</strong></td>
+    <td class="num"><strong>${regions.reduce((s,r)=>s+r.m100,0)}</strong></td>
+    <td class="num"><strong>${curRegTotal}</strong></td>
+    <td class="num dim"><strong>${prevRegTotal}</strong></td>
+    <td class="${regMomUp?'trend-up':'trend-dn'}"><strong>${regMomUp?'↑':'↓'} ${Math.abs(regMom)}%</strong></td>
+    <td class="num"><strong>${Math.round((curRegTotal/dayOfMonth)*daysInMonth)}</strong></td>
+  </tr>`;
 }
 
 // ── DATA (from FY26 Planning Grid) ──
@@ -549,6 +660,7 @@ function initCharts(){
 let inited=false;
 function init(){
   if(inited)return;inited=true;
+  buildCurrentMonth();
   buildPriceTbl('tbl-s',D.s);
   buildPriceTbl('tbl-m',D.m);
   buildPriceTbl('tbl-l',D.l);
@@ -557,7 +669,6 @@ function init(){
   buildRegionKPIs();
   initCharts();
   setInterval(tickRefresh,1000);
-  document.getElementById('last-reload').textContent=new Date().toLocaleTimeString();
 }
 if(sessionStorage.getItem('auth')==='1')init();
 </script>
